@@ -485,7 +485,7 @@ class LocalVehicleProfiles {
     name: 'XPENG G3i',
     manufacturer: 'XPENG',
     model: 'G3i',
-    year: '2023+ v1',
+    year: '2021+ 55 KWh LFP v1',
     // Init sets up BMS (704) as default header - PIDs start with BMS
     init: 'ATH1;ATSP6;ATS0;ATM0;ATAT1;ATFCSM1;ATSH704;ATCRA784;ATFCSH704',
     pids: [
