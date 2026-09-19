@@ -475,34 +475,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: EdgeInsets.all(isTablet ? 16 : 12),
-        child: isTablet
-            ? Row(
+        padding: EdgeInsets.all(isTablet ? 14 : 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Determine if all items can fit on a single line.
+            // Data source (~120px) + timestamp (~85px) + 9 service indicators (~650px) = ~855px.
+            final canFitSingleLine = constraints.maxWidth >= 880;
+
+            if (canFitSingleLine) {
+              return Row(
                 children: [
-                  // Data source badge
                   _buildDataSourceWidget(currentDataSource),
-                  const SizedBox(width: 16),
-                  // Timestamp
+                  const SizedBox(width: 8),
                   _buildTimestampWidget(vehicleDataAsync),
                   const Spacer(),
-                  // Service status row
-                  _buildServiceStatusRow(ref),
-                ],
-              )
-            : Column(
-                children: [
-                  // Top row: Data source and timestamp
-                  Row(
-                    children: [
-                      Expanded(child: _buildDataSourceWidget(currentDataSource)),
-                      _buildTimestampWidget(vehicleDataAsync),
-                    ],
+                  Flexible(
+                    child: _buildServiceStatusRow(ref, alignment: WrapAlignment.end),
                   ),
-                  const SizedBox(height: 12),
-                  // Bottom row: Service status icons
-                  _buildServiceStatusRow(ref),
                 ],
-              ),
+              );
+            }
+
+            // When width is constrained, adaptively wrap into lines within the same bar
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _buildDataSourceWidget(currentDataSource),
+                    _buildTimestampWidget(vehicleDataAsync),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: _buildServiceStatusRow(ref, alignment: WrapAlignment.start),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -556,11 +572,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return vehicleDataAsync.when(
       data: (data) {
         if (data == null) return const SizedBox.shrink();
-        return Text(
-          _formatTimestamp(data.timestamp),
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? Colors.grey[300] : Colors.grey[700];
+        final iconColor = isDark ? Colors.grey[400] : Colors.grey[600];
+        final bgColor = isDark ? Colors.white.withAlpha(15) : Colors.grey[100]!;
+        final borderColor = isDark ? Colors.white.withAlpha(30) : Colors.grey.withAlpha(77);
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.access_time,
+                size: 13,
+                color: iconColor,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _formatTimestamp(data.timestamp),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -1918,7 +1963,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   /// Build service status indicator row
   /// For LHD: status icons are reversed so settings/status are on left (driver side)
-  Widget _buildServiceStatusRow(WidgetRef ref) {
+  Widget _buildServiceStatusRow(
+    WidgetRef ref, {
+    WrapAlignment alignment = WrapAlignment.start,
+  }) {
     final mqttService = ref.watch(mqttServiceProvider);
     final manager = ref.watch(dataSourceManagerProvider);
     final proxyService = OBDProxyService.instance;
@@ -2011,9 +2059,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
     // LHD: reverse order so status/settings icons are on left (driver side)
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
+      spacing: 6,
+      runSpacing: 6,
+      alignment: alignment,
       children: isLhd ? indicators.reversed.toList() : indicators,
     );
   }
